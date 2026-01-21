@@ -1,0 +1,113 @@
+import 'dart:convert';
+import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'package:api_integration/serrvices/auth_services.dart';
+
+class UsersAnalyticsPage extends StatefulWidget {
+  const UsersAnalyticsPage({super.key});
+
+  @override
+  State<UsersAnalyticsPage> createState() => _UsersAnalyticsPageState();
+}
+
+class _UsersAnalyticsPageState extends State<UsersAnalyticsPage> {
+  bool isLoading = true;
+  List users = [];
+
+  @override
+  void initState() {
+    super.initState();
+    fetchUsersAnalytics();
+  }
+
+  Future<void> fetchUsersAnalytics() async {
+    final token = await AuthService.getToken();
+    final uri =
+        Uri.parse('http://localhost:3000/api/v1/food/users-analytics');
+
+    try {
+      final response = await http.get(
+        uri,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final body = jsonDecode(response.body);
+        setState(() {
+          users = body['users'];
+          isLoading = false;
+        });
+      } else {
+        throw Exception('Failed to load users');
+      }
+    } catch (e) {
+      debugPrint('Users analytics error: $e');
+      setState(() => isLoading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Customers Analytics')),
+      body: isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : users.isEmpty
+              ? const Center(child: Text('No users found'))
+              : ListView.builder(
+                  padding: const EdgeInsets.all(12),
+                  itemCount: users.length,
+                  itemBuilder: (context, index) {
+                    final user = users[index];
+
+                    return Card(
+                      elevation: 3,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      child: ListTile(
+                        leading: CircleAvatar(
+                          backgroundColor: Colors.green.shade100,
+                          child: Text(
+                            user['name'][0].toUpperCase(),
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                        title: Text(
+                          user['name'],
+                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                        subtitle: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(user['email']),
+                            Text('Phone: ${user['phone'] ?? '-'}'),
+                            const SizedBox(height: 4),
+                            Text(
+                              'Orders: ${user['totalOrders']}  |  ₹${user['totalValue']}',
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w600,
+                                color: Colors.green,
+                              ),
+                            ),
+                          ],
+                        ),
+                        trailing: Text(
+                          '#${index + 1}',
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: Colors.grey,
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+    );
+  }
+}
